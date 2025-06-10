@@ -1,0 +1,45 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Security.Cryptography;
+using UnityEditor.Build.Content;
+using UnityEngine;
+
+public class Car_Torque : MonoBehaviour
+{
+    // Start is called before the first frame update
+    Rigidbody rb;
+    public WheelCollider[] wheels;
+    public float velocity;
+    public Transform[] WT;
+    public Transform[] cw;
+    public float angle = 17;
+    void Start()
+    {
+        rb = GetComponent<Rigidbody>();
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        Foward();
+        Debug.Log(rb.velocity.magnitude);
+        wheels[0].steerAngle = angle * Input.GetAxis("Horizontal");
+        wheels[1].steerAngle = angle * Input.GetAxis("Horizontal");
+
+        cw[0].Rotate(wheels[0].rpm / 60 * 360 * Time.fixedDeltaTime, 0, 0);
+        cw[1].Rotate(wheels[1].rpm / 60 * 360 * Time.fixedDeltaTime, 0, 0);
+        cw[2].Rotate(wheels[2].rpm / 60 * 360 * Time.fixedDeltaTime, 0, 0);
+        cw[3].Rotate(wheels[3].rpm / 60 * 360 * Time.fixedDeltaTime, 0, 0);
+    }
+
+    void Foward()
+    {
+        if (Input.GetKeyDown(KeyCode.W))
+        {
+            foreach (WheelCollider wheel in wheels)
+            {
+                wheel.motorTorque = velocity;
+            }
+        }
+    }
+}
