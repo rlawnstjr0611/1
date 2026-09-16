@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+
+rhythm_game/songs/*
+!rhythm_game/songs/.gitkeep
+rhythm_game/charts/*
+!rhythm_game/charts/.gitkeep
