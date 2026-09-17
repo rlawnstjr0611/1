@@ -15,7 +15,7 @@ import librosa
 
 from config import DIFFICULTY_PARAMS, LANE_COUNT
 
-CHART_VERSION = 4
+CHART_VERSION = 5
 
 LANE_PICK_TEMPERATURE = 1.1  # 낮을수록 스펙트럼상 가장 강한 레인으로 더 확정적으로 쏠림
 MAX_SAME_LANE_REPEAT = 2  # 같은 레인이 이 횟수 연속으로 나오면 다음엔 강하게 회피
@@ -53,8 +53,9 @@ def _band_energies(y, sr, onset_time, lane_count):
     return energies
 
 
-def _pick_lane(energies, rng, recent_lanes):
-    """대역 세기가 가장 큰 레인에 확률적으로 쏠리게(소프트맥스) 레인을 뽑는다.
+def _pick_lane(energies, rng, recent_lanes, lane_free_until, t):
+    """대역 세기가 가장 큰 레인에 확률적으로 쏠리게(소프트맥스) 레인을 뽑되,
+    롱노트(홀드)가 아직 끝나지 않아 사용 중인 레인은 후보에서 제외한다.
 
     argmax로 고정하면 곡 전체의 음색이 비슷할 때 항상 같은 한두 레인만 나와서
     "두 레일에서만 노트가 나온다"는 문제가 생긴다. 에너지를 곡 상대적인
@@ -70,10 +71,16 @@ def _pick_lane(energies, rng, recent_lanes):
     if len(recent_lanes) >= MAX_SAME_LANE_REPEAT and len(set(recent_lanes[-MAX_SAME_LANE_REPEAT:])) == 1:
         weights[recent_lanes[-1]] *= 0.08
 
+    free = np.array([lane_free_until[i] <= t for i in range(lane_count)])
+    if not free.any():
+        # 모든 레인이 롱노트로 막혀 있는 극단적인 경우: 가장 먼저 비는 레인을 강제로 사용
+        return int(np.argmin(lane_free_until))
+    weights = np.where(free, weights, 0.0)
+
     total = weights.sum()
     if not np.isfinite(total) or total <= 0:
-        weights = np.ones(lane_count)
-        total = float(lane_count)
+        weights = free.astype(float)
+        total = weights.sum()
     weights = weights / total
     return int(rng.choice(lane_count, p=weights))
 
@@ -104,24 +111,25 @@ def generate_chart(audio_path, difficulty="NORMAL", lane_count=LANE_COUNT, cache
 
     notes = []
     recent_lanes = []
-    last_time_per_lane = {}
+    lane_free_until = [0.0] * lane_count
     prev_time = -1.0
     for t in onset_times:
         if t - prev_time < min_gap:
             continue
         prev_time = t
 
+        is_hold = rng.random() < params["hold_prob"]
+        duration = round(float(rng.uniform(0.25, 0.6)), 3) if is_hold else 0.0
+        end_time = t + duration
+
         energies = _band_energies(y, sr, t, lane_count)
-        lane = _pick_lane(energies, rng, recent_lanes)
-        if last_time_per_lane.get(lane, -10.0) > t - 0.08:
-            lane = (lane + 1) % lane_count
-        last_time_per_lane[lane] = t
+        lane = _pick_lane(energies, rng, recent_lanes, lane_free_until, t)
+        lane_free_until[lane] = end_time + 0.05
         recent_lanes.append(lane)
 
-        note = {"time": round(float(t), 4), "lane": int(lane), "type": "tap"}
-        if rng.random() < params["hold_prob"]:
-            note["type"] = "hold"
-            note["duration"] = round(float(rng.uniform(0.25, 0.6)), 3)
+        note = {"time": round(float(t), 4), "lane": int(lane), "type": "hold" if is_hold else "tap"}
+        if is_hold:
+            note["duration"] = duration
         notes.append(note)
 
     notes.sort(key=lambda n: n["time"])
