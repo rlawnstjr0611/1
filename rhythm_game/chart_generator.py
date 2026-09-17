@@ -15,7 +15,7 @@ import librosa
 
 from config import DIFFICULTY_PARAMS, LANE_COUNT
 
-CHART_VERSION = 2
+CHART_VERSION = 3
 
 
 def _file_hash(path):
@@ -27,18 +27,27 @@ def _file_hash(path):
 
 
 def _lane_for_onset(y, sr, onset_time, lane_count):
-    """온셋 주변 오디오의 주파수 분포를 보고 가장 에너지가 큰 대역을 레인으로 반환."""
+    """온셋 주변 오디오의 주파수 분포를 보고 가장 두드러진 대역을 레인으로 반환.
+
+    음악 스펙트럼은 저음일수록 에너지가 압도적으로 크기 때문에(1/f에 가까운 분포),
+    대역을 선형으로 나누고 세기를 단순 합산하면 거의 항상 최저음 대역(레인 0)만
+    선택된다. 그래서 대역을 로그 스케일로 나누고(멜 스케일과 비슷하게 저음 대역은
+    좁게, 고음 대역은 넓게), 대역별 세기도 합이 아닌 로그 압축된 평균으로 비교해서
+    특정 대역이 빈 채널 개수만으로 유리해지지 않도록 한다.
+    """
     frame = int(onset_time * sr)
     window = y[max(0, frame - 1024): frame + 1024]
     if len(window) < 64:
         return 0
-    spectrum = np.abs(np.fft.rfft(window))
+    windowed = window * np.hanning(len(window))
+    spectrum = np.log1p(np.abs(np.fft.rfft(windowed)))
     freqs = np.fft.rfftfreq(len(window), 1.0 / sr)
-    bands = np.linspace(0, freqs[-1], lane_count + 1)
+
+    edges = np.concatenate(([0.0], np.geomspace(60.0, freqs[-1], lane_count)))
     energies = []
     for i in range(lane_count):
-        mask = (freqs >= bands[i]) & (freqs < bands[i + 1])
-        energies.append(spectrum[mask].sum() if mask.any() else 0.0)
+        mask = (freqs >= edges[i]) & (freqs < edges[i + 1])
+        energies.append(spectrum[mask].mean() if mask.any() else 0.0)
     return int(np.argmax(energies))
 
 
