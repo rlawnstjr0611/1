@@ -3,7 +3,8 @@ import pygame
 from config import (
     SCREEN_WIDTH, SCREEN_HEIGHT, LANE_WIDTH, LANE_GAP, LANES_X_START,
     JUDGE_LINE_Y, NOTE_HEIGHT, NOTE_SPEED, KEY_BINDINGS,
-    JUDGMENT_WINDOWS_MS, JUDGMENT_SCORE, COLORS, DIFFICULTY_PARAMS,
+    JUDGMENT_WINDOWS_MS, JUDGMENT_SCORE, JUDGMENT_LENIENCY_CAP,
+    COLORS, DIFFICULTY_PARAMS,
 )
 from hitsound import make_hit_sound
 from fonts import get_font
@@ -71,12 +72,20 @@ class PlayResult:
 
 
 class PlayScreen:
-    def __init__(self, screen, audio_path, chart):
+    def __init__(self, screen, audio_path, chart, speed_scale=1.0):
         self.screen = screen
         self.audio_path = audio_path
         self.chart = chart
         self.lane_count = chart["lane_count"]
-        self.speed = NOTE_SPEED * DIFFICULTY_PARAMS[chart["difficulty"]]["speed_mult"]
+
+        difficulty_mult = DIFFICULTY_PARAMS[chart["difficulty"]]["speed_mult"]
+        effective_mult = difficulty_mult * speed_scale
+        self.speed = NOTE_SPEED * effective_mult
+
+        # 기준 배속(1.0x, NORMAL 난이도)보다 노트가 빨라질수록 판정 구간을 넓혀서
+        # 후하게 판정한다. 기준보다 느릴 때는 굳이 더 빡빡하게 만들지 않는다.
+        leniency = min(max(effective_mult, 1.0), JUDGMENT_LENIENCY_CAP)
+        self.judgment_windows_ms = {k: v * leniency for k, v in JUDGMENT_WINDOWS_MS.items()}
 
         self.notes = [Note(n) for n in chart["notes"]]
         self.notes.sort(key=lambda n: n.time)
@@ -147,14 +156,13 @@ class PlayScreen:
         self.next_note_idx_by_lane[lane] = idx
         return notes[idx] if idx < len(notes) else None
 
-    @staticmethod
-    def _judge_from_delta_ms(delta_ms):
+    def _judge_from_delta_ms(self, delta_ms):
         d = abs(delta_ms)
-        if d <= JUDGMENT_WINDOWS_MS["PERFECT"]:
+        if d <= self.judgment_windows_ms["PERFECT"]:
             return "PERFECT"
-        if d <= JUDGMENT_WINDOWS_MS["GREAT"]:
+        if d <= self.judgment_windows_ms["GREAT"]:
             return "GREAT"
-        if d <= JUDGMENT_WINDOWS_MS["GOOD"]:
+        if d <= self.judgment_windows_ms["GOOD"]:
             return "GOOD"
         return None
 
@@ -164,7 +172,7 @@ class PlayScreen:
         if note is None:
             return
         delta_ms = (now - note.time) * 1000.0
-        if abs(delta_ms) > JUDGMENT_WINDOWS_MS["MISS"]:
+        if abs(delta_ms) > self.judgment_windows_ms["MISS"]:
             return
         judgment = self._judge_from_delta_ms(delta_ms)
         if judgment is None:
@@ -189,7 +197,7 @@ class PlayScreen:
         note.hold_active = False
         note.judged = True
         delta_ms = (note.end_time - now) * 1000.0
-        judgment = "GOOD" if delta_ms <= JUDGMENT_WINDOWS_MS["GOOD"] else "MISS"
+        judgment = "GOOD" if delta_ms <= self.judgment_windows_ms["GOOD"] else "MISS"
         self._finalize_note(judgment)
 
     def _finalize_note(self, judgment):
@@ -206,7 +214,7 @@ class PlayScreen:
             if n.judged:
                 continue
             if n.type == "tap":
-                if now - n.time > JUDGMENT_WINDOWS_MS["MISS"] / 1000.0:
+                if now - n.time > self.judgment_windows_ms["MISS"] / 1000.0:
                     n.judged = True
                     self._finalize_note("MISS")
             else:
@@ -215,7 +223,7 @@ class PlayScreen:
                         n.judged = True
                         n.hold_active = False
                         self._finalize_note("PERFECT")
-                elif now - n.time > JUDGMENT_WINDOWS_MS["MISS"] / 1000.0:
+                elif now - n.time > self.judgment_windows_ms["MISS"] / 1000.0:
                     n.judged = True
                     self._finalize_note("MISS")
 

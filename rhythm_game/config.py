@@ -27,6 +27,15 @@ JUDGMENT_WINDOWS_MS = {
 }
 JUDGMENT_SCORE = {"PERFECT": 100, "GREAT": 70, "GOOD": 30, "MISS": 0}
 
+# 사용자가 옵션 화면에서 조절하는 노트 낙하 속도 배율
+DEFAULT_SPEED_SCALE = 1.0
+MIN_SPEED_SCALE = 0.5
+MAX_SPEED_SCALE = 2.5
+SPEED_SCALE_STEP = 0.1
+
+# 노트가 빨라질수록(기준 배속보다 클수록) 판정 구간을 이 배율까지 넓혀서 후하게 준다
+JUDGMENT_LENIENCY_CAP = 1.8
+
 # onset_delta: 낮을수록 온셋을 더 민감하게(많이) 잡아 노트가 촘촘해짐
 # min_gap_ms: 연속된 노트 사이 최소 시간 간격
 # hold_prob: 온셋 하나가 롱노트(홀드)가 될 확률

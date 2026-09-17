@@ -9,6 +9,8 @@ from menu import SongSelectMenu
 from chart_generator import generate_chart
 from game import PlayScreen
 from result_screen import show_result
+from settings import Settings
+from settings_screen import run_settings_screen
 from fonts import get_font
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -79,12 +81,16 @@ def main():
     os.makedirs(SONGS_DIR, exist_ok=True)
     os.makedirs(CHARTS_DIR, exist_ok=True)
 
-    menu = SongSelectMenu(screen, songs_dir=SONGS_DIR)
+    settings = Settings()
+    menu = SongSelectMenu(screen, songs_dir=SONGS_DIR, settings=settings)
 
     while True:
         selection = menu.run()
         if selection is None:
             break
+        if selection == "SETTINGS":
+            run_settings_screen(screen, settings)
+            continue
         audio_path, difficulty = selection
 
         try:
@@ -97,7 +103,7 @@ def main():
             continue
 
         try:
-            play_screen = PlayScreen(screen, audio_path, chart)
+            play_screen = PlayScreen(screen, audio_path, chart, speed_scale=settings.speed_scale)
             result = play_screen.run()
         except Exception as exc:
             pygame.mixer.music.stop()
