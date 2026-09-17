@@ -3,13 +3,14 @@ import os
 import pygame
 
 from config import SCREEN_WIDTH, SCREEN_HEIGHT, COLORS
+from fonts import get_font
 
 
 def show_result(screen, chart, result):
-    font_title = pygame.font.SysFont(None, 56, bold=True)
-    font_rank = pygame.font.SysFont(None, 140, bold=True)
-    font_mid = pygame.font.SysFont(None, 30)
-    font_small = pygame.font.SysFont(None, 22)
+    font_title = get_font(56, bold=True)
+    font_rank = get_font(140, bold=True)
+    font_mid = get_font(30)
+    font_small = get_font(22)
     clock = pygame.time.Clock()
 
     while True:

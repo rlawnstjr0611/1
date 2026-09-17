@@ -6,6 +6,7 @@ from config import (
     JUDGMENT_WINDOWS_MS, JUDGMENT_SCORE, COLORS, DIFFICULTY_PARAMS,
 )
 from hitsound import make_hit_sound
+from fonts import get_font
 
 
 class Note:
@@ -90,9 +91,9 @@ class PlayScreen:
             LANES_X_START + i * (LANE_WIDTH + LANE_GAP) for i in range(self.lane_count)
         ]
 
-        self.font_big = pygame.font.SysFont(None, 64, bold=True)
-        self.font_mid = pygame.font.SysFont(None, 30, bold=True)
-        self.font_small = pygame.font.SysFont(None, 20)
+        self.font_big = get_font(64, bold=True)
+        self.font_mid = get_font(30, bold=True)
+        self.font_small = get_font(20)
 
         self.result = PlayResult()
         self.lane_press_flash = {i: -1.0 for i in range(self.lane_count)}

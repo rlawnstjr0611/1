@@ -3,6 +3,7 @@ import os
 import pygame
 
 from config import SCREEN_WIDTH, SCREEN_HEIGHT, COLORS
+from fonts import get_font
 
 AUDIO_EXTENSIONS = (".mp3", ".ogg", ".wav")
 
@@ -18,9 +19,9 @@ class SongSelectMenu:
         self.difficulties = ["EASY", "NORMAL", "HARD"]
         self.diff_index = 1
 
-        self.font_title = pygame.font.SysFont(None, 44, bold=True)
-        self.font_item = pygame.font.SysFont(None, 28)
-        self.font_hint = pygame.font.SysFont(None, 20)
+        self.font_title = get_font(44, bold=True)
+        self.font_item = get_font(28)
+        self.font_hint = get_font(20)
 
     def run(self):
         clock = pygame.time.Clock()
